@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MoMo Ledger</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">MoMo Ledger</div>
+    <div class="session" id="session" hidden>
+      <span class="muted">Logged in as <strong id="who"></strong></span>
+      <button class="btn" id="logout-btn" type="button">Log out</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Login / create account -->
+    <section class="card login" id="login-view" hidden>
+      <h1>Welcome</h1>
+      <form id="login-form">
+        <input name="username" aria-label="Username" placeholder="Username" autocomplete="username" required
+          minlength="3" maxlength="30" pattern="[A-Za-z0-9_]+" title="3–30 letters, numbers or _">
+        <input name="password" type="password" aria-label="Password" placeholder="Password" autocomplete="current-password"
+          required minlength="8" maxlength="72" title="At least 8 characters">
+        <button class="link muted" type="button" id="forgot-btn">Forgot Password</button>
+        <p class="error-text" id="login-error" role="alert"></p>
+        <!-- "Login" comes first so pressing Enter logs in instead of creating an account -->
+        <button class="btn primary block" type="submit" value="login">Login</button>
+        <p class="signup">Don't have an account? <button class="link" type="submit" value="register">SignUp</button></p>
+      </form>
+    </section>
+
+    <!-- Everything you see after logging in -->
+    <div id="app-view" hidden>
+      <p class="banner" id="banner" role="alert" hidden></p>
+
+      <section class="card">
+        <h2>Upload a backup</h2>
+        <p class="muted">An XML export from an Android SMS backup app. Messages that are already in your ledger are skipped.</p>
+        <form id="upload-form" class="upload">
+          <input type="file" id="upload-file" accept=".xml,text/xml" required>
+          <button class="btn primary" type="submit" id="upload-btn" disabled>Upload</button>
+        </form>
+        <p id="upload-result" role="status"></p>
+        <details id="unmatched" hidden>
+          <summary>MoMo messages that couldn't be read (<span id="unmatched-count"></span>)</summary>
+          <ul id="unmatched-list"></ul>
+        </details>
+      </section>
+
+      <div class="charts" id="charts" hidden>
+        <section class="card">
+          <h2>Money in vs out per month</h2>
+          <div class="chart"><canvas id="flow-chart"></canvas></div>
+        </section>
+        <section class="card">
+          <h2>Where the money goes</h2>
+          <div class="chart"><canvas id="merchant-chart"></canvas></div>
+        </section>
+      </div>
+      <p class="muted" id="charts-note" hidden></p>
+
+      <section class="card">
+        <div class="toolbar">
+          <h2>Transactions</h2>
+          <div class="filters">
+            <select id="f-type" aria-label="Filter by type"><option value="">All types</option></select>
+            <select id="f-status" aria-label="Filter by status"><option value="">All statuses</option></select>
+            <button class="btn primary" id="new-btn" type="button">+ New</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Date</th><th>Type</th><th>Other party</th><th class="num">Amount</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+          <p class="empty muted" id="empty" hidden></p>
+        </div>
+        <div class="pager">
+          <button class="btn" id="prev" type="button">← Previous</button>
+          <span class="muted" id="page-label"></span>
+          <button class="btn" id="next" type="button">Next →</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Add / edit form -->
+  <dialog id="editor" aria-labelledby="editor-title">
+    <form id="editor-form">
+      <h2 id="editor-title">New transaction</h2>
+      <div class="grid">
+        <label>Type <select name="transaction_type" required><option value="">Choose…</option></select></label>
+        <label>Amount (RWF) <input name="amount" type="number" min="1" step="1" required></label>
+        <label>Other party <input name="party" maxlength="100" placeholder="e.g. Kigali Mart"></label>
+        <label>Date and time <input name="date" type="datetime-local" required></label>
+        <label>Status <select name="status"></select></label>
+      </div>
+      <p class="error-text" id="editor-error" role="alert"></p>
+      <div class="actions">
+        <button class="btn" type="button" id="cancel-btn">Cancel</button>
+        <button class="btn primary" type="submit">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+</body>
+</html>

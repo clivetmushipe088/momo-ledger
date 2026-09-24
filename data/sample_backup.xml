@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
+<!-- Made-up sample in the layout of an Android "SMS Backup & Restore" export.
+     Unlike modified_sms_v2.xml it has no ready-made fields: only the text,
+     the sender address and the date in milliseconds since 1970.
+     It includes two normal chats (ignored), one MoMo message no rule
+     understands (unmatched) and one repeat of TXN002 from the main file
+     (a duplicate if that file was uploaded first). -->
+<smses count="10">
+  <sms protocol="0" address="M-Money" date="1706770800000" type="1" body="You have received 1,500 RWF from Nadia (0781112233). TxnId: TXN101" />
+  <sms protocol="0" address="M-Money" date="1706956200000" type="1" body="Your payment of 12,000 RWF to Kigali Mart was successful. TxnId: TXN102" />
+  <sms protocol="0" address="M-Money" date="1707149400000" type="1" body="You have transferred 4,000 RWF to Bob (0782345678). TxnId: TXN103" />
+  <sms protocol="0" address="M-Money" date="1707284700000" type="1" body="You have bought airtime worth 1,000 RWF. TxnId: TXN104" />
+  <sms protocol="0" address="M-Money" date="1707544800000" type="1" body="You have received 60,000 RWF from Umurava Ltd (0788765432). TxnId: TXN105" />
+  <sms protocol="0" address="M-Money" date="1707747600000" type="1" body="You have withdrawn 20,000 RWF via agent Jean (0783334455). Fee: 400 RWF. TxnId: TXN106" />
+  <sms protocol="0" address="+250788000111" date="1707843900000" type="1" body="Hi, are we still meeting tomorrow at 5?" />
+  <sms protocol="0" address="MTN" date="1707885000000" type="1" body="Your verification code is 482913. Do not share it." />
+  <sms protocol="0" address="M-Money" date="1707984000000" type="1" body="Your payment of 5,500 RWF to Pharmacy Plus was successful. TxnId: TXN107" />
+  <sms protocol="0" address="M-Money" date="1704357000000" type="1" body="Your payment of 2000 RWF to Kigali Mart was successful. TxnId: TXN002" />
+</smses>
