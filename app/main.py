@@ -1,14 +1,3 @@
-"""
-main.py - the MoMo Ledger web app.
-
-Run it from the project folder with:
-
-    uvicorn app.main:app --reload
-
-then open http://localhost:8000 for the dashboard, or http://localhost:8000/docs
-to try the API.
-"""
-
 import sqlite3
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -42,7 +31,7 @@ def database_rejected(request: Request, exc: sqlite3.IntegrityError):
     return JSONResponse(status_code=400, content={"detail": "The database rejected this data."})
 
 
-# ---------- accounts ----------
+#  accounts 
 
 @app.post("/auth/register", status_code=201)
 def register(user: UserIn):
@@ -81,7 +70,7 @@ def me(user=Depends(auth.current_user)):
     return {"username": user["username"]}
 
 
-# ---------- importing a backup ----------
+#  importing a backup 
 
 @app.post("/upload")
 def upload(file: UploadFile, user=Depends(auth.current_user)):
@@ -101,7 +90,7 @@ def unmatched(user=Depends(auth.current_user)):
     return db.list_unmatched(user["id"])
 
 
-# ---------- transactions ----------
+#  transactions 
 
 @app.get("/transactions")
 def list_transactions(
@@ -144,7 +133,7 @@ def delete_transaction(txn_id: int, user=Depends(auth.current_user)):
     return {"message": "Transaction deleted."}
 
 
-# ---------- reports for the charts ----------
+#  reports for the charts 
 
 @app.get("/reports/monthly-flow")
 def monthly_flow(user=Depends(auth.current_user)):

@@ -8,7 +8,7 @@ NEW_TXN = {"transaction_type": "transfer", "amount": 5000, "party": "Bob",
            "date": "2024-02-01 10:00:00"}
 
 
-# ---------- logging in ----------
+# logging in
 
 def test_api_needs_login(client):
     assert client.get("/transactions").status_code == 401
@@ -46,7 +46,7 @@ def test_old_logins_stop_working(user):
     assert user.get("/auth/me").status_code == 401
 
 
-# ---------- uploading a backup ----------
+#  uploading a backup 
 
 def test_upload_skips_duplicates(user):
     assert upload(user, "modified_sms_v2.xml").json() == {
@@ -65,7 +65,7 @@ def test_upload_rejects_a_file_that_is_not_xml(user):
     assert response.status_code == 400
 
 
-# ---------- listing ----------
+#  listing 
 
 def test_filter_and_pages(user):
     upload(user, "modified_sms_v2.xml")
@@ -83,7 +83,7 @@ def test_filter_and_pages(user):
     assert user.get("/transactions?type=gift").status_code == 422
 
 
-# ---------- create, read, update, delete ----------
+#  create, read, update, delete 
 
 def test_bad_transactions_are_rejected(user):
     assert user.post("/transactions", json={**NEW_TXN, "amount": -500}).status_code == 422

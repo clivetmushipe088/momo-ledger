@@ -1,10 +1,4 @@
 <?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
-<!-- Made-up sample in the layout of an Android "SMS Backup & Restore" export.
-     Unlike modified_sms_v2.xml it has no ready-made fields: only the text,
-     the sender address and the date in milliseconds since 1970.
-     It includes two normal chats (ignored), one MoMo message no rule
-     understands (unmatched) and one repeat of TXN002 from the main file
-     (a duplicate if that file was uploaded first). -->
 <smses count="10">
   <sms protocol="0" address="M-Money" date="1706770800000" type="1" body="You have received 1,500 RWF from Nadia (0781112233). TxnId: TXN101" />
   <sms protocol="0" address="M-Money" date="1706956200000" type="1" body="Your payment of 12,000 RWF to Kigali Mart was successful. TxnId: TXN102" />

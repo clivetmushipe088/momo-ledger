@@ -1,10 +1,3 @@
-"""
-reports.py - numbers for the dashboard charts.
-
-The two views in schema.sql do the adding up; these functions only pick
-out the logged-in user's rows.
-"""
-
 from . import db
 
 

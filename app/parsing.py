@@ -1,11 +1,3 @@
-"""
-parsing.py - turns an SMS backup (XML) into MoMo transaction records.
-
-Only the text and date of each message are used, the same as a real phone
-backup. Every MoMo message ends up either as a record or in the unmatched
-list, so nothing is thrown away without us knowing.
-"""
-
 import re
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone

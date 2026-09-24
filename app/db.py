@@ -1,11 +1,3 @@
-"""
-db.py - every SQL query the app runs, apart from the reports.
-
-Each function opens its own connection and closes it when done, which is
-cheap with SQLite. Values always go in as ? placeholders, never pasted into
-the SQL text, so user input can't change a query.
-"""
-
 import math
 import os
 import sqlite3
@@ -45,7 +37,7 @@ def _clean(values: dict) -> dict:
     return row
 
 
-# ---------- users and sessions ----------
+#  users and sessions 
 
 def create_user(username: str, password_hash: str) -> bool:
     """Returns False if the username is already taken."""
@@ -86,7 +78,7 @@ def delete_session(token: str) -> None:
         conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
 
 
-# ---------- importing a backup ----------
+#  importing a backup 
 
 def save_import(user_id: int, records: list[dict], unmatched: list[dict]) -> dict:
     """Insert parsed records. Ones already in the database (same sms_ref) are skipped."""
@@ -114,7 +106,7 @@ def list_unmatched(user_id: int) -> list[dict]:
     return [dict(row) for row in rows]
 
 
-# ---------- transactions ----------
+#  transactions 
 
 def list_transactions(user_id, txn_type=None, status=None, min_amount=None,
                       max_amount=None, page=1, limit=20) -> dict:

@@ -1,0 +1,140 @@
+// MoMo Ledger ERD
+// Paste this into https://dbdiagram.io/d to draw the diagram, then
+// Export -> PNG and save it as docs/erd_diagram.png.
+// Matches database/database_setup.sql.
+
+Project momo_ledger {
+  database_type: 'MySQL'
+  Note: 'MoMo SMS ledger: wallet owners, their transactions, the parties involved, and system logs.'
+}
+
+Table users {
+  user_id int [pk, increment, note: 'INT UNSIGNED']
+  username varchar(30) [not null, unique]
+  full_name varchar(100) [not null]
+  phone_number varchar(10) [not null, unique, note: '07XXXXXXXX']
+  password_hash char(60) [not null, note: 'bcrypt hash only']
+  created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+  Note: 'Wallet owners who use the ledger'
+}
+
+Table transaction_categories {
+  category_id tinyint [pk, increment, note: 'TINYINT UNSIGNED']
+  category_code varchar(30) [not null, unique]
+  category_name varchar(60) [not null]
+  direction enum_direction [not null]
+  description varchar(255)
+  Note: 'Kinds of MoMo transaction'
+}
+
+Table parties {
+  party_id int [pk, increment]
+  party_name varchar(100) [not null]
+  party_type enum_party_type [not null]
+  phone_number varchar(10) [unique, note: 'people and agents']
+  merchant_code varchar(60) [unique, note: 'merchants, banks, services']
+  created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+  Note: 'CHECK: phone_number or merchant_code must be set'
+}
+
+Table transactions {
+  transaction_id bigint [pk, increment, note: 'BIGINT UNSIGNED']
+  user_id int [not null, ref: > users.user_id]
+  category_id tinyint [not null, ref: > transaction_categories.category_id]
+  sms_ref varchar(30) [note: 'TxnId; NULL for manual entries']
+  amount decimal(12,2) [not null, note: 'CHECK > 0']
+  fee decimal(10,2) [not null, default: 0, note: 'CHECK >= 0']
+  balance_after decimal(12,2)
+  currency char(3) [not null, default: 'RWF']
+  transaction_date datetime [not null]
+  status enum_status [not null, default: 'completed']
+  raw_sms text
+  created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+  Indexes {
+    (user_id, transaction_date) [name: 'idx_transactions_user_date']
+    (sms_ref, user_id) [unique, name: 'uq_transactions_sms']
+    category_id [name: 'idx_transactions_category']
+    status [name: 'idx_transactions_status']
+  }
+}
+
+// Junction table: resolves transactions M:N parties
+Table transaction_parties {
+  transaction_id bigint [not null, ref: > transactions.transaction_id]
+  party_id int [not null, ref: > parties.party_id]
+  party_role enum_party_role [not null]
+
+  Indexes {
+    (transaction_id, party_id, party_role) [pk]
+    party_id [name: 'idx_tp_party']
+  }
+}
+
+Table system_logs {
+  log_id bigint [pk, increment]
+  user_id int [ref: > users.user_id, note: 'NULL if no known user; ON DELETE SET NULL']
+  transaction_id bigint [ref: > transactions.transaction_id, note: 'ON DELETE SET NULL']
+  log_level enum_log_level [not null, default: 'INFO']
+  event_type varchar(40) [not null]
+  message varchar(500) [not null]
+  created_at datetime(3) [not null]
+
+  Indexes {
+    created_at [name: 'idx_logs_created']
+    (log_level, created_at) [name: 'idx_logs_level_created']
+  }
+}
+
+Table sessions {
+  token char(43) [pk]
+  user_id int [not null, ref: > users.user_id]
+  created_at datetime [not null]
+  expires_at datetime [not null, note: 'CHECK > created_at']
+}
+
+Table unmatched_sms {
+  unmatched_id int [pk, increment]
+  user_id int [not null, ref: > users.user_id]
+  body text [not null]
+  body_hash char(64) [not null, note: 'SHA-256 of body']
+  received_at datetime
+
+  Indexes {
+    (user_id, body_hash) [unique]
+  }
+}
+
+Enum enum_direction {
+  in
+  out
+}
+
+Enum enum_party_type {
+  person
+  merchant
+  agent
+  bank
+  service
+}
+
+Enum enum_status {
+  completed
+  pending
+  failed
+  reversed
+}
+
+Enum enum_party_role {
+  sender
+  receiver
+  agent
+}
+
+Enum enum_log_level {
+  DEBUG
+  INFO
+  WARNING
+  ERROR
+}

@@ -1,12 +1,3 @@
-"""
-models.py - the shape of the data the API accepts.
-
-FastAPI checks every request body against these models before our code
-runs, and answers 422 with the reason if something is wrong. The allowed
-types and statuses match the CHECK constraints in schema.sql and the lists
-in web/app.js.
-"""
-
 from datetime import datetime
 from typing import Literal
 

@@ -5,7 +5,7 @@ from app.parsing import classify, parse_backup, parse_date
 DATA = Path(__file__).resolve().parent.parent / "data"
 
 
-# ---------- one test per message format ----------
+#  one test per message format 
 
 def test_incoming_money():
     result = classify("You have received 5000 RWF from Alice (0781234567). TxnId: TXN001")
@@ -32,7 +32,7 @@ def test_airtime():
     assert result["party"] == ""
 
 
-# ---------- edge cases ----------
+#  edge cases 
 
 def test_amount_with_commas():
     assert classify("You have received 1,500 RWF from Nadia (0781112233).")["amount"] == 1500
@@ -68,7 +68,7 @@ def test_backup_sorts_messages_into_three_groups():
     assert records[0]["raw_sms"].startswith("You have received")
 
 
-# ---------- the real data files ----------
+#  the real data files 
 
 def test_whole_dataset_parses():
     records, unmatched, ignored = parse_backup((DATA / "modified_sms_v2.xml").read_bytes())

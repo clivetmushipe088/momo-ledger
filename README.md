@@ -1,6 +1,6 @@
 # MoMo SMS Ledger
 
-**Team 2 | ALU | Database Design and Implementation**
+**Team 2 | ALU – Database Design and Implementation**
 
 | Name | Role |
 |------|------|
@@ -10,11 +10,12 @@
 
 A web app and REST API that turns MTN Mobile Money SMS messages into a ledger you can search, edit and chart. You upload an XML backup of your phone's text messages; the app finds the MoMo messages, reads the type, amount and other party from the message text, and saves them in a database.
 
-* **API:** built with FastAPI. Pydantic validates every request, and the interactive docs are at `/docs`.
-* **Accounts:** everyone registers and only sees their own transactions. Passwords are stored as bcrypt hashes, and the login is kept in an HttpOnly cookie.
-* **No double counting:** each SMS transaction id (`TxnId`) can be stored only once per user, so uploading the same backup twice adds nothing.
-* **Dashboard:** upload a backup, see two charts, and filter, page, add, edit or delete transactions.
-* **Tests:** pytest, run by GitHub Actions on every push.
+- **API:** built with FastAPI. Pydantic validates every request, and the interactive docs are at `/docs`.
+- **Accounts:** everyone registers and only sees their own transactions. Passwords are stored as bcrypt hashes, and the login is kept in an HttpOnly cookie.
+- **No double counting:** each SMS transaction id (`TxnId`) can be stored only once per user, so uploading the same backup twice adds nothing.
+- **Dashboard:** upload a backup, see two charts, and filter, page, add, edit or delete transactions.
+- **Database design:** a full MySQL schema with an ERD, a data dictionary, CRUD tests and JSON schemas (see [Database Design](#database-design)).
+- **Tests:** pytest, run by GitHub Actions on every push.
 
 ## Repository Structure
 
@@ -23,17 +24,26 @@ momo/
 ├── app/
 │   ├── main.py                 # FastAPI app: all routes, serves the dashboard
 │   ├── models.py               # request validation (Pydantic)
-│   ├── parsing.py              # turns SMS backup XML into transaction records
+│   ├── parsing.py              # SMS backup XML -> transaction records
 │   ├── db.py                   # SQL queries (sqlite3)
 │   ├── auth.py                 # password hashing, login sessions
 │   ├── reports.py              # numbers for the charts
 │   └── schema.sql              # the app's SQLite tables and views
 ├── web/                        # dashboard: index.html, app.js, styles.css
+├── database/
+│   ├── database_setup.sql      # full MySQL design: tables, constraints, indexes, sample data
+│   ├── crud_tests.sql          # CRUD and constraint tests
+│   └── crud_test_results.txt   # output of the tests
+├── examples/
+│   └── json_schemas.json       # JSON Schemas, examples, SQL-to-JSON mapping
 ├── data/
 │   ├── modified_sms_v2.xml     # MoMo SMS dataset (25 messages)
-│   └── sample_backup.xml       # made up phone backup with chats, a duplicate and an unknown format
+│   └── sample_backup.xml       # made-up phone backup with chats, a duplicate and an unknown format
 ├── docs/
-│   └── api_docs.md             # full API documentation
+│   ├── api_docs.md             # full API documentation
+│   ├── database_design.md      # ERD, design rationale, data dictionary, queries, security
+│   ├── erd.dbml                # ERD source for dbdiagram.io
+│   └── project_analysis.md     # review of version 1
 ├── tests/                      # test_parsing.py, test_api.py
 ├── .github/workflows/tests.yml # runs the tests on every push
 └── README.md
@@ -41,8 +51,9 @@ momo/
 
 ## Prerequisites
 
-* Python 3.10 or higher
-* curl or Postman for testing
+- Python 3.10 or higher
+- MySQL 8.0 or higher (only for the database design scripts; the app itself uses SQLite)
+- curl or Postman for testing
 
 ## Setup & Running
 
@@ -79,11 +90,11 @@ pytest
 
 ## Credentials
 
-There is no built in account. Create your own, either on the login page with **SignUp** or with the API:
+There is no built-in account. Create your own, either on the login page with **SignUp** or with the API:
 
 | Field | Rule |
 |-------|------|
-| Username | 3 to 30 letters, numbers or `_` |
+| Username | 3–30 letters, numbers or `_` |
 | Password | at least 8 characters |
 
 After logging in, the session cookie lasts one day.
@@ -125,11 +136,21 @@ curl -b cookies.txt -X DELETE http://localhost:8000/transactions/1
 curl http://localhost:8000/transactions
 ```
 
+## Database Design
+
+```bash
+mysql -u root -p < database/database_setup.sql                          # create and fill momo_ledger
+mysql -u root -p --table --force momo_ledger < database/crud_tests.sql  # run the CRUD and constraint tests
+```
+
+The MySQL design has 8 tables: `users`, `transactions`, `transaction_categories`, `parties`, the junction table `transaction_parties` (transactions ↔ parties is many-to-many), `system_logs`, `sessions` and `unmatched_sms`. It has foreign keys, CHECK constraints, indexes, a comment on every column, and at least 5 sample rows per table. The test script changes the data, so run the setup script again afterwards to reset it.
+
+The ERD, design rationale, data dictionary, sample queries and security rules are in [`docs/database_design.md`](docs/database_design.md). The JSON model is in [`examples/json_schemas.json`](examples/json_schemas.json).
+
 ## API Documentation
 
 See [`docs/api_docs.md`](docs/api_docs.md) for the full endpoint reference, including request and response examples, error codes, how the SMS parsing works, and a security discussion.
 
 ## Scrum Board
 
-<!-- TODO: add the Scrum board link -->
 [Scrum board](<link>)

@@ -1,12 +1,3 @@
-"""
-auth.py - passwords and logins.
-
-Passwords are stored as bcrypt hashes, never as plain text. After a
-successful login the browser gets a random session token in an HttpOnly
-cookie, which the page's JavaScript can't read, so the password itself
-never has to be stored in the browser.
-"""
-
 import secrets
 
 import bcrypt
