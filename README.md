@@ -146,7 +146,7 @@ mysql -u root -p < database/database_setup.sql                          # create
 mysql -u root -p --table --force momo_ledger < database/crud_tests.sql  # run the CRUD and constraint tests
 ```
 
-The MySQL design has 8 tables: `users`, `transactions`, `transaction_categories`, `parties`, the junction table `transaction_parties` (transactions ↔ parties is many to many), `system_logs`, `sessions` and `unmatched_sms`. It has foreign keys, CHECK constraints, indexes, a comment on every column, and at least 5 sample rows per table. The test script changes the data, so run the setup script again afterwards to reset it.
+The MySQL design has 8 tables: `users`, `transactions`, `transaction_categories`, `parties`, the junction table `transaction_parties` (transactions ↔ parties is many to many), `system_logs`, `sessions` and `unmatched_sms`. It has foreign keys, CHECK constraints, indexes, a comment on every column, and at least 5 sample rows per table. The test script changes the data, and the setup script puts it back.
 
 The ERD, design rationale, data dictionary, sample queries and security rules are in [`docs/database_design.md`](docs/database_design.md). The JSON model is in [`examples/json_schemas.json`](examples/json_schemas.json). The ERD itself is [`docs/erd_diagram.png`](docs/erd_diagram.png), drawn from [`docs/erd.drawio`](docs/erd.drawio). The design document is also available as a PDF: [`docs/database_design.pdf`](docs/database_design.pdf).
 

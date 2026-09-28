@@ -19,7 +19,7 @@ This document describes the relational database behind that: the ERD, why I desi
 
 ![MoMo Ledger ERD](erd_diagram.png)
 
-*Drawn in Draw.io. The editable source is [`erd.drawio`](erd.drawio): open it at [app.diagrams.net](https://app.diagrams.net) to change it or export it again. [`erd.dbml`](erd.dbml) holds the same model for [dbdiagram.io](https://dbdiagram.io/d).*
+*Drawn in Draw.io. The editable source is [`erd.drawio`](erd.drawio), and [`erd.dbml`](erd.dbml) holds the same model in dbdiagram.io format.*
 
 The same diagram in text form (GitHub renders this):
 

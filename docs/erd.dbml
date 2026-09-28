@@ -1,6 +1,4 @@
-// MoMo Ledger ERD
-// Paste this into https://dbdiagram.io/d to draw the diagram, then
-// Export -> PNG and save it as docs/erd_diagram.png.
+// MoMo Ledger ERD, in dbdiagram.io format.
 // Matches database/database_setup.sql.
 
 Project momo_ledger {
