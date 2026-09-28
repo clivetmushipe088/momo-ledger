@@ -1,0 +1,397 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://momo-ledger.example/schemas/momo_ledger.json",
+  "title": "MoMo Ledger JSON data model",
+  "description": "JSON Schemas for every main entity in database/database_setup.sql, a nested transaction object, realistic API responses, and the SQL-to-JSON mapping. Money is sent as a string with two decimals so DECIMAL values keep their exact value; times are ISO 8601 with the Kigali offset (+02:00). password_hash and session tokens are never serialized.",
+
+  "$defs": {
+    "money": {
+      "description": "DECIMAL(12,2) as a string, e.g. \"5000.00\". A string avoids floating-point rounding in JavaScript clients.",
+      "type": "string",
+      "pattern": "^[0-9]{1,10}\\.[0-9]{2}$"
+    },
+    "datetime": {
+      "description": "DATETIME stored in Kigali local time, serialized as ISO 8601 with +02:00.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{3})?\\+02:00$"
+    },
+    "phone": {
+      "type": "string",
+      "pattern": "^07[2389][0-9]{7}$"
+    },
+
+    "user": {
+      "title": "User (table users)",
+      "type": "object",
+      "properties": {
+        "user_id":      { "type": "integer", "minimum": 1 },
+        "username":     { "type": "string", "pattern": "^[A-Za-z0-9_]{3,30}$" },
+        "full_name":    { "type": "string", "maxLength": 100 },
+        "phone_number": { "$ref": "#/$defs/phone" },
+        "created_at":   { "$ref": "#/$defs/datetime" }
+      },
+      "required": ["user_id", "username", "full_name", "phone_number", "created_at"],
+      "additionalProperties": false
+    },
+
+    "user_ref": {
+      "title": "User, short form used when nested inside another object",
+      "type": "object",
+      "properties": {
+        "user_id":   { "type": "integer", "minimum": 1 },
+        "username":  { "type": "string" },
+        "full_name": { "type": "string" }
+      },
+      "required": ["user_id", "username"],
+      "additionalProperties": false
+    },
+
+    "category": {
+      "title": "Transaction category (table transaction_categories)",
+      "type": "object",
+      "properties": {
+        "category_id":   { "type": "integer", "minimum": 1 },
+        "category_code": { "type": "string", "pattern": "^[a-z_]+$" },
+        "category_name": { "type": "string", "maxLength": 60 },
+        "direction":     { "enum": ["in", "out"] },
+        "description":   { "type": ["string", "null"], "maxLength": 255 }
+      },
+      "required": ["category_id", "category_code", "category_name", "direction"],
+      "additionalProperties": false
+    },
+
+    "party": {
+      "title": "Party (table parties)",
+      "type": "object",
+      "properties": {
+        "party_id":      { "type": "integer", "minimum": 1 },
+        "party_name":    { "type": "string", "maxLength": 100 },
+        "party_type":    { "enum": ["person", "merchant", "agent", "bank", "service"] },
+        "phone_number":  { "oneOf": [{ "$ref": "#/$defs/phone" }, { "type": "null" }] },
+        "merchant_code": { "type": ["string", "null"], "maxLength": 60 }
+      },
+      "required": ["party_id", "party_name", "party_type", "phone_number", "merchant_code"],
+      "additionalProperties": false,
+      "anyOf": [
+        { "properties": { "phone_number":  { "type": "string" } } },
+        { "properties": { "merchant_code": { "type": "string" } } }
+      ]
+    },
+
+    "transaction_party": {
+      "title": "One row of the junction table transaction_parties, with the party embedded",
+      "type": "object",
+      "properties": {
+        "role":  { "enum": ["sender", "receiver", "agent"] },
+        "party": { "$ref": "#/$defs/party" }
+      },
+      "required": ["role", "party"],
+      "additionalProperties": false
+    },
+
+    "system_log": {
+      "title": "System log entry (table system_logs)",
+      "type": "object",
+      "properties": {
+        "log_id":         { "type": "integer", "minimum": 1 },
+        "user_id":        { "type": ["integer", "null"] },
+        "transaction_id": { "type": ["integer", "null"] },
+        "log_level":      { "enum": ["DEBUG", "INFO", "WARNING", "ERROR"] },
+        "event_type":     { "type": "string", "pattern": "^[a-z_]+$" },
+        "message":        { "type": "string", "maxLength": 500 },
+        "created_at":     { "$ref": "#/$defs/datetime" }
+      },
+      "required": ["log_id", "log_level", "event_type", "message", "created_at"],
+      "additionalProperties": false
+    },
+
+    "transaction": {
+      "title": "Transaction with all related data (GET /transactions/{id})",
+      "description": "Joins transactions, transaction_categories, users, transaction_parties + parties, and system_logs into one object.",
+      "type": "object",
+      "properties": {
+        "transaction_id":   { "type": "integer", "minimum": 1 },
+        "sms_ref":          { "type": ["string", "null"], "maxLength": 30 },
+        "amount":           { "$ref": "#/$defs/money" },
+        "fee":              { "$ref": "#/$defs/money" },
+        "balance_after":    { "oneOf": [{ "$ref": "#/$defs/money" }, { "type": "null" }] },
+        "currency":         { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "transaction_date": { "$ref": "#/$defs/datetime" },
+        "status":           { "enum": ["completed", "pending", "failed", "reversed"] },
+        "category":         { "$ref": "#/$defs/category" },
+        "user":             { "$ref": "#/$defs/user_ref" },
+        "parties":          { "type": "array", "items": { "$ref": "#/$defs/transaction_party" } },
+        "raw_sms":          { "type": ["string", "null"] },
+        "logs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/system_log",
+            "description": "user_id and transaction_id are left out here because the parent object already gives them"
+          }
+        },
+        "created_at":       { "$ref": "#/$defs/datetime" },
+        "updated_at":       { "$ref": "#/$defs/datetime" }
+      },
+      "required": ["transaction_id", "sms_ref", "amount", "fee", "balance_after", "currency",
+                   "transaction_date", "status", "category", "user", "parties", "created_at", "updated_at"],
+      "additionalProperties": false
+    },
+
+    "transaction_summary": {
+      "title": "Transaction row in a list (flattened for tables)",
+      "type": "object",
+      "properties": {
+        "transaction_id":   { "type": "integer" },
+        "sms_ref":          { "type": ["string", "null"] },
+        "transaction_date": { "$ref": "#/$defs/datetime" },
+        "category_code":    { "type": "string" },
+        "direction":        { "enum": ["in", "out"] },
+        "amount":           { "$ref": "#/$defs/money" },
+        "fee":              { "$ref": "#/$defs/money" },
+        "currency":         { "type": "string" },
+        "status":           { "enum": ["completed", "pending", "failed", "reversed"] },
+        "counterparty":     { "type": ["string", "null"], "description": "Name of the sender (money in) or receiver (money out)" }
+      },
+      "required": ["transaction_id", "transaction_date", "category_code", "direction", "amount", "status"],
+      "additionalProperties": false
+    },
+
+    "transaction_list_response": {
+      "title": "Paged list (GET /transactions?page=&page_size=)",
+      "type": "object",
+      "properties": {
+        "data": { "type": "array", "items": { "$ref": "#/$defs/transaction_summary" } },
+        "pagination": {
+          "type": "object",
+          "properties": {
+            "page":        { "type": "integer", "minimum": 1 },
+            "page_size":   { "type": "integer", "minimum": 1, "maximum": 100 },
+            "total_items": { "type": "integer", "minimum": 0 },
+            "total_pages": { "type": "integer", "minimum": 0 }
+          },
+          "required": ["page", "page_size", "total_items", "total_pages"],
+          "additionalProperties": false
+        },
+        "links": {
+          "type": "object",
+          "properties": {
+            "self": { "type": "string" },
+            "next": { "type": ["string", "null"] },
+            "prev": { "type": ["string", "null"] }
+          },
+          "required": ["self", "next", "prev"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["data", "pagination", "links"],
+      "additionalProperties": false
+    },
+
+    "error_response": {
+      "title": "Error body for 4xx responses",
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "object",
+          "properties": {
+            "status":  { "type": "integer", "minimum": 400, "maximum": 599 },
+            "code":    { "type": "string" },
+            "message": { "type": "string" },
+            "fields":  {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": { "field": { "type": "string" }, "problem": { "type": "string" } },
+                "required": ["field", "problem"]
+              }
+            }
+          },
+          "required": ["status", "code", "message"]
+        }
+      },
+      "required": ["error"],
+      "additionalProperties": false
+    }
+  },
+
+  "x-examples": {
+    "user": {
+      "user_id": 1,
+      "username": "aline_u",
+      "full_name": "Aline Uwase",
+      "phone_number": "0789876543",
+      "created_at": "2024-01-02T18:40:00+02:00"
+    },
+
+    "category": {
+      "category_id": 2,
+      "category_code": "payment",
+      "category_name": "Payment to merchant",
+      "direction": "out",
+      "description": "MoMoPay payment to a merchant code"
+    },
+
+    "party": {
+      "party_id": 8,
+      "party_name": "Kigali Mart",
+      "party_type": "merchant",
+      "phone_number": null,
+      "merchant_code": "MTN:MoMoPay:Kigali_Mart"
+    },
+
+    "system_log": {
+      "log_id": 4,
+      "user_id": 2,
+      "transaction_id": 10,
+      "log_level": "ERROR",
+      "event_type": "transaction_failed",
+      "message": "Transfer TXN2001 to 0787890123 reported as failed by MTN",
+      "created_at": "2024-02-03T15:20:05.002+02:00"
+    },
+
+    "transaction_full": {
+      "transaction_id": 13,
+      "sms_ref": "TXN4001",
+      "amount": "12000.00",
+      "fee": "250.00",
+      "balance_after": null,
+      "currency": "RWF",
+      "transaction_date": "2024-02-12T11:40:00+02:00",
+      "status": "completed",
+      "category": {
+        "category_id": 3,
+        "category_code": "transfer",
+        "category_name": "Transfer to number",
+        "direction": "out",
+        "description": "Money sent to another MoMo number"
+      },
+      "user": {
+        "user_id": 4,
+        "username": "eric_n",
+        "full_name": "Eric Niyonzima"
+      },
+      "parties": [
+        {
+          "role": "receiver",
+          "party": {
+            "party_id": 6,
+            "party_name": "Frank",
+            "party_type": "person",
+            "phone_number": "0786789012",
+            "merchant_code": null
+          }
+        },
+        {
+          "role": "agent",
+          "party": {
+            "party_id": 12,
+            "party_name": "Kimironko Agent 045",
+            "party_type": "agent",
+            "phone_number": "0788112233",
+            "merchant_code": "AGT-045"
+          }
+        }
+      ],
+      "raw_sms": "You have transferred 12000 RWF to Frank (0786789012) via agent Kimironko Agent 045. TxnId: TXN4001",
+      "logs": [
+        {
+          "log_id": 7,
+          "log_level": "INFO",
+          "event_type": "sms_import",
+          "message": "Imported 1 new transaction with agent Kimironko Agent 045",
+          "created_at": "2024-02-12T12:00:02.441+02:00"
+        }
+      ],
+      "created_at": "2024-02-12T12:00:02+02:00",
+      "updated_at": "2024-02-12T12:00:02+02:00"
+    },
+
+    "transaction_list_response": {
+      "data": [
+        {
+          "transaction_id": 8,
+          "sms_ref": "TXN008",
+          "transaction_date": "2024-01-10T13:15:00+02:00",
+          "category_code": "transfer",
+          "direction": "out",
+          "amount": "7500.00",
+          "fee": "100.00",
+          "currency": "RWF",
+          "status": "completed",
+          "counterparty": "Eve"
+        },
+        {
+          "transaction_id": 7,
+          "sms_ref": "TXN007",
+          "transaction_date": "2024-01-09T08:30:00+02:00",
+          "category_code": "incoming_money",
+          "direction": "in",
+          "amount": "20000.00",
+          "fee": "0.00",
+          "currency": "RWF",
+          "status": "completed",
+          "counterparty": "David"
+        },
+        {
+          "transaction_id": 6,
+          "sms_ref": "TXN006",
+          "transaction_date": "2024-01-08T16:45:00+02:00",
+          "category_code": "payment",
+          "direction": "out",
+          "amount": "3500.00",
+          "fee": "0.00",
+          "currency": "RWF",
+          "status": "completed",
+          "counterparty": "Pharmacy Plus"
+        }
+      ],
+      "pagination": { "page": 1, "page_size": 3, "total_items": 8, "total_pages": 3 },
+      "links": {
+        "self": "/transactions?page=1&page_size=3",
+        "next": "/transactions?page=2&page_size=3",
+        "prev": null
+      }
+    },
+
+    "error_response": {
+      "error": {
+        "status": 422,
+        "code": "validation_failed",
+        "message": "The request body is not valid.",
+        "fields": [
+          { "field": "amount", "problem": "must be greater than 0" },
+          { "field": "transaction_date", "problem": "must be an ISO 8601 date-time" }
+        ]
+      }
+    }
+  },
+
+  "x-sql-to-json-mapping": {
+    "rules": [
+      "Column names are kept as-is (snake_case), so a JSON field can be traced straight back to its column.",
+      "Foreign keys are replaced by the nested object they point to: transactions.category_id -> transaction.category, transactions.user_id -> transaction.user.",
+      "The M:N junction table transaction_parties becomes the array transaction.parties; each item holds the role and the embedded party.",
+      "system_logs rows with a matching transaction_id become the array transaction.logs.",
+      "DECIMAL -> string with 2 decimals; DATETIME -> ISO 8601 string with +02:00; ENUM -> string limited by enum; NULL -> null (the key is always present).",
+      "Never serialized: users.password_hash, sessions.token, unmatched_sms.body_hash."
+    ],
+    "transaction": [
+      { "sql": "transactions.transaction_id",   "sql_type": "BIGINT UNSIGNED",  "json": "transaction_id",        "json_type": "integer" },
+      { "sql": "transactions.sms_ref",          "sql_type": "VARCHAR(30) NULL", "json": "sms_ref",               "json_type": "string | null" },
+      { "sql": "transactions.amount",           "sql_type": "DECIMAL(12,2)",    "json": "amount",                "json_type": "string (money)" },
+      { "sql": "transactions.fee",              "sql_type": "DECIMAL(10,2)",    "json": "fee",                   "json_type": "string (money)" },
+      { "sql": "transactions.balance_after",    "sql_type": "DECIMAL(12,2) NULL", "json": "balance_after",       "json_type": "string (money) | null" },
+      { "sql": "transactions.currency",         "sql_type": "CHAR(3)",          "json": "currency",              "json_type": "string" },
+      { "sql": "transactions.transaction_date", "sql_type": "DATETIME",         "json": "transaction_date",      "json_type": "string (ISO 8601)" },
+      { "sql": "transactions.status",           "sql_type": "ENUM",             "json": "status",                "json_type": "string (enum)" },
+      { "sql": "transactions.raw_sms",          "sql_type": "TEXT NULL",        "json": "raw_sms",               "json_type": "string | null" },
+      { "sql": "transactions.created_at",       "sql_type": "DATETIME",         "json": "created_at",            "json_type": "string (ISO 8601)" },
+      { "sql": "transactions.updated_at",       "sql_type": "DATETIME",         "json": "updated_at",            "json_type": "string (ISO 8601)" },
+      { "sql": "transactions.category_id -> transaction_categories.*", "sql_type": "FK (N:1)", "json": "category", "json_type": "object" },
+      { "sql": "transactions.user_id -> users.user_id, username, full_name", "sql_type": "FK (N:1)", "json": "user", "json_type": "object" },
+      { "sql": "transaction_parties.party_role + parties.*", "sql_type": "junction (M:N)", "json": "parties[]", "json_type": "array of { role, party }" },
+      { "sql": "system_logs.* WHERE transaction_id = ?", "sql_type": "FK (1:N)", "json": "logs[]", "json_type": "array of object" }
+    ]
+  }
+}

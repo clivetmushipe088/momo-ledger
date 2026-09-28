@@ -191,6 +191,8 @@ Some decisions worth knowing:
 - **Two layers of checks.** Pydantic rejects bad input first. The `CHECK` constraints in the database (positive amount, known type and status, date format) are the backup if something slips through.
 - **Every query filters by `user_id`**, so one user can never read or change another user's data.
 
+The full MySQL design the app is moving to is in [`database_design.md`](database_design.md).
+
 ---
 
 ## Security
