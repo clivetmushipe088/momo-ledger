@@ -1,6 +1,6 @@
 # MoMo SMS Ledger
 
-**Team 2 | ALU | Database Design and Implementation**
+**Team 2 | ALU | Building and Securing a REST API + Database Design and Implementation**
 
 | Name | Role |
 |------|------|
@@ -10,7 +10,9 @@
 
 A web app and REST API that turns MTN Mobile Money SMS messages into a ledger you can search, edit and chart. You upload an XML backup of your phone's text messages; the app finds the MoMo messages, reads the type, amount and other party from the message text, and saves them in a database.
 
-* **API:** built with FastAPI. Pydantic validates every request, and the interactive docs are at `/docs`.
+* **REST API:** `api/api.py`, built on Python's own `http.server`, serves the SMS records with full CRUD behind HTTP Basic Authentication.
+* **Search benchmark:** `dsa/dsa_comparison.py` times linear search against dictionary lookup and explains the difference.
+* **Dashboard API:** a second, larger service built with FastAPI, backed by SQLite, which serves the web dashboard.
 * **Accounts:** everyone registers and only sees their own transactions. Passwords are stored as bcrypt hashes, and the login is kept in an HttpOnly cookie.
 * **No double counting:** each SMS transaction id (`TxnId`) can be stored only once per user, so uploading the same backup twice adds nothing.
 * **Dashboard:** upload a backup, see two charts, and filter, page, add, edit or delete transactions.
@@ -21,6 +23,12 @@ A web app and REST API that turns MTN Mobile Money SMS messages into a ledger yo
 
 ```
 momo/
+├── api/
+│   └── api.py                  # REST API: CRUD + Basic Auth, on http.server
+├── dsa/
+│   ├── parse_sms.py            # SMS backup XML -> JSON objects
+│   └── dsa_comparison.py       # linear search vs dictionary lookup benchmark
+├── screenshots/                # curl test evidence and the benchmark
 ├── app/
 │   ├── main.py                 # FastAPI app: all routes, serves the dashboard
 │   ├── models.py               # request validation (Pydantic)
@@ -40,14 +48,18 @@ momo/
 │   ├── modified_sms_v2.xml     # MoMo SMS dataset (25 messages)
 │   └── sample_backup.xml       # made up phone backup with chats, a duplicate and an unknown format
 ├── docs/
-│   ├── api_docs.md             # full API documentation
+│   ├── api_docs.md             # REST API documentation: endpoints, examples, errors
+│   ├── api_report.md           # report: security, endpoints, DSA results, Basic Auth
+│   ├── api_report.pdf          # the same report as a PDF
+│   ├── dashboard_api.md        # the FastAPI dashboard service
+│   ├── team_participation.md   # who did what
 │   ├── database_design.md      # ERD, design rationale, data dictionary, queries, security
 │   ├── database_design.pdf     # the same document as a PDF
 │   ├── erd_diagram.png         # the ERD
 │   ├── erd.drawio              # ERD source, editable in Draw.io
 │   ├── erd.dbml                # the same ERD for dbdiagram.io
 │   └── screenshots/            # query results and CRUD test output
-├── tests/                      # test_parsing.py, test_api.py
+├── tests/                      # test_parsing.py, test_api.py, test_plain_api.py
 ├── .github/workflows/tests.yml # runs the tests on every push
 └── README.md
 ```
@@ -75,17 +87,24 @@ source .venv/bin/activate          # on Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 3. Start the server
+### 3. Start the REST API
+
+```bash
+python api/api.py
+# MoMo SMS API on http://localhost:8080  (25 transactions loaded)
+```
+
+It reads `data/modified_sms_v2.xml` at startup and keeps the records in memory, so changes last until the server stops. Pass a port to use a different one: `python api/api.py 9000`.
+
+### 4. Start the dashboard (optional)
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-The server starts at <http://localhost:8000>. Open it in a browser for the dashboard, or go to <http://localhost:8000/docs> for the interactive API docs.
+The dashboard runs at <http://localhost:8000>, with interactive docs at <http://localhost:8000/docs>. Its database is a single file, `momo.db`, created on first start. Delete it to start again from nothing.
 
-The app's database is a single file, `momo.db`, created on first start. Delete it to start again from nothing.
-
-### 4. Run the tests
+### 5. Run the tests
 
 ```bash
 pytest
@@ -93,51 +112,54 @@ pytest
 
 ## Credentials
 
-There is no built in account. Create your own, either on the login page with **SignUp** or with the API:
+The REST API uses HTTP Basic Authentication:
 
-| Field | Rule |
-|-------|------|
-| Username | 3 to 30 letters, numbers or `_` |
-| Password | at least 8 characters |
+| Field | Value |
+|-------|-------|
+| Username | `admin` |
+| Password | `momo2024` |
 
-After logging in, the session cookie lasts one day.
+They are set at the top of `api/api.py`.
+
+The dashboard is separate and has no built in account: create your own with **SignUp**, using 3 to 30 letters, numbers or `_` and a password of at least 8 characters.
 
 ## Quick API Test
 
-The login cookie is saved in `cookies.txt` and sent with every request after that.
-
 ```bash
-# Create an account and log in
-curl -H "Content-Type: application/json" -d '{"username":"clive","password":"password123"}' \
-  http://localhost:8000/auth/register
-curl -c cookies.txt -H "Content-Type: application/json" -d '{"username":"clive","password":"password123"}' \
-  http://localhost:8000/auth/login
-
-# Import the dataset
-curl -b cookies.txt -F file=@data/modified_sms_v2.xml http://localhost:8000/upload
-
 # List all transactions
-curl -b cookies.txt http://localhost:8000/transactions
+curl -u admin:momo2024 http://localhost:8080/transactions
 
 # Get one transaction
-curl -b cookies.txt http://localhost:8000/transactions/1
+curl -u admin:momo2024 http://localhost:8080/transactions/5
 
 # Create a transaction
-curl -b cookies.txt -X POST http://localhost:8000/transactions \
+curl -u admin:momo2024 -X POST http://localhost:8080/transactions \
   -H "Content-Type: application/json" \
-  -d '{"transaction_type":"transfer","amount":5000,"party":"Bob","date":"2024-02-01 10:00:00"}'
+  -d '{"transaction_type":"transfer","amount":5000,"sender":"0789876543","receiver":"0781111111","date":"2024-02-01 10:00:00"}'
 
 # Update a transaction
-curl -b cookies.txt -X PUT http://localhost:8000/transactions/1 \
+curl -u admin:momo2024 -X PUT http://localhost:8080/transactions/26 \
   -H "Content-Type: application/json" \
   -d '{"status":"reversed","amount":5500}'
 
 # Delete a transaction
-curl -b cookies.txt -X DELETE http://localhost:8000/transactions/1
+curl -u admin:momo2024 -X DELETE http://localhost:8080/transactions/26
 
 # Test unauthorized access (should return 401)
-curl http://localhost:8000/transactions
+curl -i http://localhost:8080/transactions
+curl -i -u admin:wrongpassword http://localhost:8080/transactions
 ```
+
+Test evidence is in [`screenshots/`](screenshots/), and the dashboard's own API is covered in [`docs/dashboard_api.md`](docs/dashboard_api.md).
+
+## DSA Benchmark
+
+```bash
+python dsa/dsa_comparison.py            # 100,000 repetitions per case
+python dsa/dsa_comparison.py 20000      # fewer, for a quicker run
+```
+
+Finds a transaction by id with a linear search through the list and with a dictionary lookup, over the 25 records and then over copies grown to 25,000. The dictionary is about 9× faster at 25 records and over 5,000× faster at 25,000, because a linear search is O(n) while a hash lookup is O(1). Full numbers and the reflection are in [`docs/api_report.md`](docs/api_report.md).
 
 ## Database Design
 
@@ -152,7 +174,11 @@ The ERD, design rationale, data dictionary, sample queries and security rules ar
 
 ## API Documentation
 
-See [`docs/api_docs.md`](docs/api_docs.md) for the full endpoint reference, including request and response examples, error codes, how the SMS parsing works, and a security discussion.
+| Document | What's in it |
+|---|---|
+| [`docs/api_docs.md`](docs/api_docs.md) | The REST API: authentication, every endpoint with request and response examples, error codes, and why Basic Auth is weak |
+| [`docs/api_report.md`](docs/api_report.md) ([PDF](docs/api_report.pdf)) | Report: API security, the endpoints, the DSA results, and the reflection on Basic Auth |
+| [`docs/dashboard_api.md`](docs/dashboard_api.md) | The FastAPI dashboard service, its routes and how the SMS parsing works |
 
 ## Scrum Board
 
